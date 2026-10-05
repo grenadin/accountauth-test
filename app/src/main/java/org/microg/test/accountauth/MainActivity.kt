@@ -52,7 +52,7 @@ class MainActivity : Activity() {
         val savedName = prefs.getString("name", null)
         val savedType = prefs.getString("type", null)
         if (savedName != null && savedType != null) account = Account(savedName, savedType)
-        handleIntent(intent)
+        if (savedInstanceState == null) handleIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -88,22 +88,28 @@ class MainActivity : Activity() {
     }
 
     private fun requestToken() {
+        val overrides = overridePackage?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+        if (overrides.isNullOrEmpty()) requestToken(null) else overrides.forEach { requestToken(it) }
+    }
+
+    private fun requestToken(override: String?) {
         val account = account ?: return log("Choose an account first")
         val scope = scopeInput.text.toString().trim()
         val options = Bundle()
-        overridePackage?.let { options.putString("overridePackage", it) }
-        log("getAuthToken: $scope, override=$overridePackage, waiting for result...")
+        override?.let { options.putString("overridePackage", it) }
+        val label = "$scope, override=$override"
+        log("getAuthToken: $label, waiting for result...")
         AccountManager.get(this).getAuthToken(account, scope, options, this, { future ->
             try {
                 val result = future.result
                 val token = result.getString(AccountManager.KEY_AUTHTOKEN)
                 if (token != null) {
-                    log("SUCCESS: token received (${token.length} chars)")
+                    log("SUCCESS [$label]: token received (${token.length} chars)")
                 } else {
-                    log("Result without token, keys: ${result.keySet()}")
+                    log("Result without token [$label], keys: ${result.keySet()}")
                 }
             } catch (e: Exception) {
-                log("FAILED: ${e.javaClass.simpleName}: ${e.message}")
+                log("FAILED [$label]: ${e.javaClass.simpleName}: ${e.message}")
             }
         }, null)
     }
