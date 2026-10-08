@@ -23,9 +23,30 @@ adb shell am start -n org.microg.test.accountauth/.MainActivity --es account <em
 - `scope`: auth token type, for example `mail` or `oauth2:https://www.googleapis.com/auth/userinfo.email`.
   OAuth2 scopes need an app registered with Google, so legacy services like `mail` are easier for testing.
 - `override` (optional): passes `overridePackage` in the options, for example
-  `--es override com.android.vending`, to request a token on behalf of another package.
+  `--es override com.android.vending`, to request a token on behalf of another package. A comma-separated
+  list sends one request per package at the same time, for example
+  `--es override com.android.vending,com.google.android.youtube`.
+
+Each result line is labeled with the scope and override package of its request.
 
 To reach the permission dialog in microG, disable "Trust Google for app permissions" in the microG settings.
+
+## Testing the override dialog without a Google account
+
+microG checks the override before any network request, so the account does not have to exist. This shows
+`AskPackageOverrideActivity` on an emulator without signing in:
+
+```
+adb shell am start -n org.microg.test.accountauth/.MainActivity --es account test.user@example.com --es scope mail --es override com.android.vending
+```
+
+- Deny: the request fails with `OperationCanceledException`.
+- Allow: microG returns `retry`, and `AccountManager` sends the request again. The consent cannot be stored for
+  an account that does not exist, so the dialog is shown again.
+
+Use an AOSP system image without Google services (`system-images;android-XX;default;x86_64`), so that microG
+can be installed. Pending `AccountManager` requests can be checked with
+`adb shell dumpsys account | grep -c "expectLaunch true"`.
 
 ## Build
 
